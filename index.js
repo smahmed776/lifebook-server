@@ -37,7 +37,7 @@ app.listen(PORT, ()=> {
 
 if(process.env.NODE_ENV == 'production'){
     app.use(cors({
-    origin: "*",
+    origin: "https://smahmed776.github.io/lifebook",
         credentials: true,
     }))
 } else {
