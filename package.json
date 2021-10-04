@@ -1,0 +1,33 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "body-parser": "^1.19.0",
+    "concurrently": "^6.2.1",
+    "cookie-parser": "^1.4.5",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongo": "^0.1.0",
+    "mongodb": "^4.1.2",
+    "mongoose": "^6.0.7",
+    "nodemon": "^2.0.13",
+    "validator": "^13.6.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cd Front-end && npm run build",
+    "install-client": "cd Front-end && npm install",
+    "heroku-postbuild": "npm run install-client && npm run build",
+    "server": "nodemon ./index.js",
+    "develop": "concurrently --kill-others-on-fail \"npm run server\" \"npm run start --prefix Front-end\"",
+    "start": "concurrently --kill-others-on-fail \"npm run server\" \"npm run start --prefix Front-end\""
+  }
+}
