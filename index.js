@@ -36,10 +36,7 @@ app.listen(PORT, ()=> {
 });
 
 if(process.env.NODE_ENV == 'production'){
-    app.use(cors({
-    origin: "https://smahmed776.github.io/lifebook",
-        credentials: true,
-    }))
+    app.use(cors())
 } else {
     app.use(cors({
     origin: "http://localhost:3000",
