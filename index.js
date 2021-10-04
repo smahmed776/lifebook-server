@@ -53,13 +53,13 @@ app.use(cookieParser())
 
 
 // Accessing the path module
-const path = require("path");
-const { getNotification, readNotification } = require('./routes/notification');
+// const path = require("path");
+// const { getNotification, readNotification } = require('./routes/notification');
 
-// Step 1:
-if(process.env.NODE_ENV == 'production'){
-    app.use(express.static(path.resolve(__dirname, "./Front-end/build")));
-}
+// // Step 1:
+// if(process.env.NODE_ENV == 'production'){
+//     app.use(express.static(path.resolve(__dirname, "./Front-end/build")));
+// }
 // Step 2:
 // app.get("*", function (request, response) {
 //   response.sendFile(path.resolve(__dirname, "./Front-end/build", "index.html"));
