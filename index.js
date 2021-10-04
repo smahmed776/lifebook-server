@@ -32,20 +32,34 @@ await   mongoose.connect(DB, {
 
 
 
+// var whitelist = ['http://example1.com', 'http://example2.com']
+// var corsOptions = {
+//   origin: function (origin, callback) {
+//     if (whitelist.indexOf(origin) !== -1) {
+//       callback(null, true)
+//     } else {
+//       callback(new Error('Not allowed by CORS'))
+//     }
+//   }
+// }
+
+
+
+app.use(cors({
+    origin: "http://smahmed776.github.io",
+credentials: true,
+}))
+// if(process.env.NODE_ENV == 'production'){
+// } else {
+//     app.use(cors({
+    //     origin: "http://localhost:3000",
+//         credentials: true,
+//     }))
+// }
+
 app.listen(PORT, ()=> {
     console.log(`server running on port ${PORT}`);
 });
-
-if(process.env.NODE_ENV == 'production'){
-    app.use(cors({
-    origin: "*",
-    }))
-} else {
-    app.use(cors({
-    origin: "http://localhost:3000",
-    }))
-}
-
 
 
 app.use(express.json());
@@ -54,7 +68,7 @@ app.use(cookieParser())
 
 app.get('/hi', (req, res) => {
     res.status(200).json({
-       headers: req.headers,
+       headers: res.headers,
        message: "welcome"
     })
 })
