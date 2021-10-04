@@ -35,17 +35,32 @@ app.listen(PORT, ()=> {
     console.log(`server running on port ${PORT}`);
 });
 
-if(process.env.NODE_ENV == 'production'){
-    app.use(cors({
-    origin: "https://mern-lifebook-github.herokuapp.com",
-        credentials: true,
-    }))
-} else {
-    app.use(cors({
-    origin: "http://localhost:3000",
-        credentials: true,
-    }))
-}
+// if(process.env.NODE_ENV == 'production'){
+//     app.use(cors({
+//     origin: "https://mern-lifebook-github.herokuapp.com",
+//         credentials: true,
+//     }))
+// } else {
+//     app.use(cors({
+//     origin: "http://localhost:3000",
+//         credentials: true,
+//     }))
+// }
+
+
+
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "https://smahmed776.github.io/"); // update to match the domain you will make the request from
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  });
+  
+  app.get('/', function(req, res, next) {
+    // Handle the get for this route
+    res.json("connected")
+  });
+
+
 
 app.use(express.json());
 
