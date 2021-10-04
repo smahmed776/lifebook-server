@@ -53,6 +53,12 @@ app.use(express.json());
 
 app.use(cookieParser())
 
+app.get('/hi', (req, res) => {
+    res.status(200).json({
+       headers: req.headers,
+       message: "welcome"
+    })
+})
 
 // Accessing the path module
 // const path = require("path");
