@@ -36,7 +36,10 @@ app.listen(PORT, ()=> {
 });
 
 if(process.env.NODE_ENV == 'production'){
-    app.use(cors())
+    app.use(cors({
+    origin: "https://mern-lifebook-github.herokuapp.com",
+        credentials: true,
+    }))
 } else {
     app.use(cors({
     origin: "http://localhost:3000",
