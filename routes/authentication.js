@@ -83,7 +83,10 @@ exports.login = async (req, res) => {
         }
     } catch (error) {
 
-        res.status(400).json("Internal server error!");
+        res.status(400).json({
+            error,
+            message: "internal server error"
+        });
         
     } 
 }
