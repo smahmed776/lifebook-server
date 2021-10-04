@@ -13,6 +13,7 @@ const { updateUser } = require('./routes/updateUser');
 const { signup, login, logout } = require('./routes/authentication');
 const { newPost, getPost } = require('./routes/userpost');
 const { profile } = require('./routes/profile');
+const { getNotification, readNotification } = require('./routes/notification');
 const { likePost, unlikePost, getReacts, makeComment, deletePost } = require('./routes/postReact');
 const  JWT_SECRET = process.env.JWT_SECRET;
 
@@ -38,12 +39,10 @@ app.listen(PORT, ()=> {
 if(process.env.NODE_ENV == 'production'){
     app.use(cors({
     origin: "*",
-    credentials: true,
     }))
 } else {
     app.use(cors({
     origin: "http://localhost:3000",
-        credentials: true,
     }))
 }
 
@@ -62,9 +61,8 @@ app.get('/hi', (req, res) => {
 
 // Accessing the path module
 // const path = require("path");
-// const { getNotification, readNotification } = require('./routes/notification');
 
-// // Step 1:
+// Step 1:
 // if(process.env.NODE_ENV == 'production'){
 //     app.use(express.static(path.resolve(__dirname, "./Front-end/build")));
 // }
