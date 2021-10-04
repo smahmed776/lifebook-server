@@ -55,7 +55,7 @@ app.use(function(req, res, next) {
     next();
   });
   
-  app.get('/', function(req, res, next) {
+  app.get('/welcome', function(req, res) {
     // Handle the get for this route
     res.json("connected")
   });
