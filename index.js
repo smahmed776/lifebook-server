@@ -46,7 +46,7 @@ await   mongoose.connect(DB, {
 
 
 app.use(cors({
-    origin: "http://smahmed776.github.io",
+    origin: process.env.R_URL,
 credentials: true,
 }))
 // if(process.env.NODE_ENV == 'production'){
