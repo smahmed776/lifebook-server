@@ -9,8 +9,7 @@ const notificationSchema = new mongoose.Schema({
             {
                 react_type: String,
                 message: String,
-                buddy_id: String,
-                buddy_name: String,
+                buddy_id: [],
                 post_id: String,
                 time: String,
             }
@@ -19,8 +18,7 @@ const notificationSchema = new mongoose.Schema({
             {
                 react_type: String,
                 message: String,
-                buddy_id: String,
-                buddy_name: String,
+                buddy_id: [],
                 post_id: String,
                 time: String,
             }
