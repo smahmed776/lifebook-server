@@ -36,6 +36,9 @@ exports.likePost = async (req, res) => {
                 updatePost,
             });
         } else {
+
+            //set notification
+
             const getNotificationObj = await notification.findOne({ user_id: poster_id });
             const getPrevLikers = await getNotificationObj.reacts
             const getPrevLikersUnread = await getNotificationObj.reacts.unread
@@ -45,19 +48,32 @@ exports.likePost = async (req, res) => {
 
             if (await getPrevLikersUnread.find(i => i.post_id === id && i.react_type === 'like') || await getPrevLikersRead.find(i => i.post_id === id && i.react_type === 'like')) {
 
-                const getBuddyIds = await getPrevLikersUnread[getPrevLikersUnread.findIndex(i => i.post_id === id && i.react_type === 'like')] ?
-                    await getPrevLikersUnread[getPrevLikersUnread.findIndex(i => i.post_id === id && i.react_type === 'like')].buddy_id
-                    :
-                    await getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === id && i.react_type === 'like')]?.buddy_id
-                // check if user already has like notification from this id 
+                // check if user read notification of this post 
+                if (getPrevLikersRead.find(i => i.post_id === id && i.react_type === 'like')) {
+                    // get buddy ids 
+                    const getBuddyIds = getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === id && i.react_type === 'like')].buddy_id;
+                    // check if already liked this post 
+                    if (getBuddyIds.includes(user_id)) return res.status(200).json("already like")
+                    let removeThisPost = getPrevLikersRead.filter(i => i.post_id !== id)
+                    const getThisPost = getPrevLikersRead.filter(i => i.post_id === id)
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'like')
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
+                    }
 
-                if (getBuddyIds.includes(user_id)) return res.status(200).json("Already liked this post")
-                const filterUnread = await getPrevLikersUnread.filter(i => i.post_id !== id && i.react_type === 'like')
+                    const getThisType = getThisPost.filter(i => i.react_type === 'like');
+                    const updateThisType = {
 
-                // check if user already read notification of this post 
+                        buddy_id: [
+                            ...getBuddyIds,
+                            user_id
+                        ],
+                        post_id: getThisPost[0].post_id,
+                        time: new Date(),
+                        react_type: getThisType[0].react_type,
 
-                if (await getPrevLikersRead.find(i => i.post_id === id && i.react_type === 'like')) {
-                    const filterRead = await getPrevLikersRead.filter(i => i.post_id !== id && i.react_type === 'like')
+                    }
                     await notification.findOneAndUpdate({
                         user_id: poster_id
                     },
@@ -65,19 +81,55 @@ exports.likePost = async (req, res) => {
                             reacts: {
                                 getPrevLikers,
                                 unread: [
-                                    ...filterUnread,
-                                    {
-                                        buddy_id: [
-                                            ...getBuddyIds,
-                                            user_id
-                                        ],
-                                        post_id: id,
-                                        time: new Date(),
-                                        react_type: 'like'
-                                    }
+                                    ...getPrevLikersUnread,
+                                    updateThisType
+    
                                 ],
                                 read: [
-                                    ...filterRead,
+                                    ...removeThisPost
+                                ]
+                            }
+                        })
+                    res.status(200).json({
+                        updatePost,
+                    });
+                } else {
+                    const getBuddyIds = getPrevLikersUnread[getPrevLikersUnread.findIndex(i => i.post_id === id && i.react_type === 'like')].buddy_id
+                    
+                    if (getBuddyIds.includes(user_id)) return res.status(200).json("already like")
+                    let removeThisPost = getPrevLikersUnread.filter(i => i.post_id !== id)
+                    const getThisPost = getPrevLikersUnread.filter(i => i.post_id === id)
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'like')
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
+                    }
+
+                    const getThisType = getThisPost.filter(i => i.react_type === 'like');
+                    const updateThisType = {
+
+                        buddy_id: [
+                            ...getBuddyIds,
+                            user_id
+                        ],
+                        post_id: getThisPost[0].post_id,
+                        time: new Date(),
+                        react_type: getThisType[0].react_type,
+
+                    }
+                    await notification.findOneAndUpdate({
+                        user_id: poster_id
+                    },
+                        {
+                            reacts: {
+                                getPrevLikers,
+                                unread: [
+                                    ...removeThisPost,
+                                    updateThisType
+    
+                                ],
+                                read: [
+                                    ...getPrevLikersRead
                                 ]
                             }
                         })
@@ -85,36 +137,8 @@ exports.likePost = async (req, res) => {
                         updatePost,
                     });
 
-                } else {
-                    // this runs if user didn't read notification from this post 
-
-                    await notification.findOneAndUpdate({
-                        user_id: poster_id
-                    },
-                        {
-                            reacts: {
-                                getPrevLikers,
-                                unread: [
-                                    ...filterUnread,
-                                    {
-                                        buddy_id: [
-                                            ...getBuddyIds,
-                                            user_id
-                                        ],
-                                        post_id: id,
-                                        time: new Date(),
-                                        react_type: 'like'
-                                    }
-                                ],
-                                read: [
-                                    ...getPrevLikersRead,
-                                ]
-                            }
-                        })
                 }
-                res.status(200).json({
-                    updatePost,
-                });
+
             } else {
 
                 // this will run if user receives first notification of this post 
@@ -179,135 +203,178 @@ exports.unlikePost = async (req, res) => {
             },
             { new: true })
 
-            
-            const getNotificationObj = await notification.findOne({ user_id: poster_id });
-            const getPrevLikers = await getNotificationObj.reacts
-            const getPrevLikersUnread = await getNotificationObj.reacts.unread
-            const getPrevLikersRead = await getNotificationObj.reacts.read
-            
+        if (user_id === poster_id) return res.status(200).json("user is poster")
+
+
+        const getNotificationObj = await notification.findOne({ user_id: poster_id });
+        const getPrevLikers = await getNotificationObj.reacts
+        const getPrevLikersUnread = await getNotificationObj.reacts.unread
+        const getPrevLikersRead = await getNotificationObj.reacts.read
+
 
         // check if user read the notification or not 
-        if (await getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === id && i.react_type === 'like')]?.buddy_id.includes(user_id)) {
-    
-            // filter Previous Read Array 
-            let filterPrevRead = getPrevLikersRead.filter(i => i.post_id !== id && i.react_type === 'like')
-            const readArr = getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === id && i.react_type === 'like')]
-            console.log(readArr)
-            const BuddyIds = readArr.buddy_id;
-            console.log(BuddyIds);
-            const filterRead = BuddyIds.filter(i => i !== user_id)
-            if(filterRead.length <= 0){
-                await notification.findOneAndUpdate({
-                    user_id: poster_id,
-                },
-                    {
-                        reacts: {
-                            getPrevLikers,
-                            unread: [
-                                ...getPrevLikersUnread
-                            ],
-                            read: [
-                                ...filterPrevRead,
-                            ]
-                        }
-                    },
-                    { new: true }
-                )
-                res.status(200).json({
-                    updatePost
-                });
-            } else {
-                filterPrevRead.push(
-                    {
-                        react_type: readArr.react_type,
-                        post_id: readArr.post_id,
-                        time: readArr.time,
-                        buddy_id: [
-                            ...filterRead
-                        ]
+        if (getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === id && i.react_type === 'like')] || getPrevLikersUnread[getPrevLikersUnread.findIndex(i => i.post_id === id && i.react_type === 'like')]) {
+
+
+            if (await getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === id && i.react_type === 'like')]) {
+
+                const getBuddy_id = getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === id && i.react_type === 'like')].buddy_id
+
+
+                if (getBuddy_id.includes(user_id)) {
+               
+                    // filter Previous Read Array 
+                    let removeThisPost = getPrevLikersRead.filter(i => i.post_id !== id)
+                    const getThisPost = getPrevLikersRead.filter(i => i.post_id === id)
+              
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'like')
+                  
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
                     }
-                )
-                console.log(filterPrevRead);
-                await notification.findOneAndUpdate({
-                    user_id: poster_id,
-                },
-                    {
-                        reacts: {
-                            getPrevLikers,
-                            unread: [
-                                ...getPrevLikersUnread
-                            ],
-                            read: [
-                                ...filterPrevRead,
+                    
+                    const getThisType = getThisPost.filter(i => i.react_type === 'like')
+                   
+                    const removeThisId = getThisType[0].buddy_id.filter(i => i !== user_id)
+                 
+                
+                    if (removeThisId.length > 0) {
+                        const updateThisType = {
+                            react_type: getThisType.react_type,
+                            post_id: getThisType.post_id,
+                            time: getThisType.time,
+                            buddy_id: [
+                                ...removeThisId
                             ]
                         }
-                    },
-                    { new: true }
-                )
-                res.status(200).json({
-                    updatePost
-                });
+                      
+                        await notification.findOneAndUpdate({
+                            user_id: poster_id,
+                        },
+                            {
+                                reacts: {
+                                    getPrevLikers,
+                                    unread: [
+                                        ...getPrevLikersUnread
+                                    ],
+                                    read: [
+                                        ...removeThisPost,
+                                        updateThisType
+                                    ]
+                                }
+                            },
+                            { new: true }
+                        )
+                        res.status(200).json({
+                            updatePost
+                        });
+                    } else {
+                        
+                        await notification.findOneAndUpdate({
+                            user_id: poster_id,
+                        },
+                            {
+                                reacts: {
+                                    getPrevLikers,
+                                    unread: [
+                                        ...getPrevLikersUnread
+                                    ],
+                                    read: [
+                                        ...removeThisPost,
+                                    ]
+                                }
+                            },
+                            { new: true }
+                        )
+                        res.status(200).json({
+                            updatePost
+                        });
+
+                    }
+
+                } else {
+
+                }
+
+            } else {
+                console.log('working after else');
+                // filter previous unread array 
+
+                const getBuddy_id = getPrevLikersUnread[getPrevLikersUnread.findIndex(i => i.post_id === id && i.react_type === 'like')].buddy_id
+
+
+                if (getBuddy_id.includes(user_id)) {
+                    // filter Previous Read Array 
+                    let removeThisPost = getPrevLikersUnread.filter(i => i.post_id !== id)
+                    const getThisPost = getPrevLikersUnread.filter(i => i.post_id === id)
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'like')
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
+                    }
+                    const getThisType = getThisPost.filter(i => i.react_type === 'like')
+                    const removeThisId = getThisType[0].buddy_id.filter(i => i !== user_id)
+                    if (removeThisId.length > 0) {
+
+                        const updateThisType = {
+                            react_type: getThisType[0].react_type,
+                            post_id: getThisType[0].post_id,
+                            time: getThisType[0].time,
+                            buddy_id: [
+                                ...removeThisId
+                            ]
+                        }
+                        console.log(updateThisType);
+                        await notification.findOneAndUpdate({
+
+                            user_id: poster_id,
+                        },
+                            {
+                                reacts: {
+                                    getPrevLikers,
+                                    unread: [
+                                        ...removeThisPost,
+                                        updateThisType
+                                    ],
+                                    read: [
+                                        ...getPrevLikersRead
+                                    ]
+                                }
+                            },
+                            { new: true }
+                        )
+                        res.status(200).json({
+                            updatePost
+                        });
+                    } else {
+                        await notification.findOneAndUpdate({
+
+                            user_id: poster_id,
+                        },
+                            {
+                                reacts: {
+                                    getPrevLikers,
+                                    unread: [
+                                        ...removeThisPost,
+                                    ],
+                                    read: [
+                                        ...getPrevLikersRead
+                                    ]
+                                }
+                            },
+                            { new: true }
+                        )
+                        res.status(200).json({
+                            updatePost
+                        });
+
+                    }
+                }
+
             }
         } else {
-            console.log('working after else');
-            // filter previous unread array 
-            let filterPrevUnread = getPrevLikersUnread.filter(i=> i.post_id !== id && i.react_type === 'like');
 
-            const unreadObj = getPrevLikersUnread[getPrevLikersUnread.findIndex(i => i.post_id === id && i.react_type === 'like')];
-            const BuddyIds = unreadObj.buddy_id;
-            const filterUnread = await BuddyIds.filter(i => i !== user_id);
-            if(filterUnread.length <= 0) {
-                await notification.findOneAndUpdate({
-                    user_id: poster_id,
-                },
-                    {
-                        reacts: {
-                            getPrevLikers,
-                            unread: [
-                                ...filterPrevUnread,
-                            ],
-                            read: [
-                                ...getPrevLikersRead,
-                            ]
-                        }
-                    },
-                    { new: true }
-                )
-                res.status(200).json({
-                    updatePost
-                });
-            } else {
-                filterPrevUnread.push(
-                    {
-                        react_type: unreadObj.react_type,
-                        post_id: unreadObj.post_id,
-                        time: unreadObj.time,
-                        buddy_id: [
-                            ...filterUnread
-                        ]
-                    }
-                )
-                console.log(filterPrevUnread, 'filterPrevUnread after');
-                await notification.findOneAndUpdate({
-                    user_id: poster_id,
-                },
-                    {
-                        reacts: {
-                            getPrevLikers,
-                            unread: [
-                                ...filterPrevUnread,
-                            ],
-                            read: [
-                                ...getPrevLikersRead,
-                            ]
-                        }
-                    },
-                    { new: true }
-                )
-                res.status(200).json({
-                    updatePost
-                });
-            }
         }
 
 
@@ -371,37 +438,247 @@ exports.makeComment = async (req, res) => {
         const userProfile = await User.findById(user_id)
         const reaction = await Posts.findById(post_id);
         const poster_id = reaction.user_id
-        const count = reaction.reactions.comments.total + 1;
+        const getBuddyIds = reaction.reactions.comments.buddy_id;
         const commentorID = reaction.reactions.comments.commentators
         const like = reaction.reactions.likes
-        const updatePost = await Posts.findOneAndUpdate({
-            _id: post_id
-        },
-            {
-                reactions: {
-                    likes: like,
-                    comments: {
-                        total: count,
-                        commentators: [...commentorID, {
-                            comment: comment,
-                            user_id: user_id,
-                            time: time.toString()
-                        }],
-                    }
-                }
+        if (getBuddyIds.includes(user_id)) {
+            const filterBuddyId = getBuddyIds.filter(i => i !== user_id);
+            await Posts.findOneAndUpdate({
+                _id: post_id
             },
-            { new: true })
-
-
-        if (user_id === poster_id) {
-            res.status(200).json({
-                updatePost,
-            });
+                {
+                    reactions: {
+                        likes: like,
+                        comments: {
+                            buddy_id: [
+                                ...filterBuddyId, user_id
+                            ],
+                            commentators: [...commentorID, {
+                                comment: comment,
+                                user_id: user_id,
+                                time: time.toString()
+                            }],
+                        }
+                    }
+                },
+                { new: true })
         } else {
-            const getNotificationObj = await notification.findOne({ user_id: poster_id });
-            const getPrevLikers = await getNotificationObj.reacts
-            const getPrevLikersUnread = await getNotificationObj.reacts.unread
-            const getPrevLikersRead = await getNotificationObj.reacts.read
+            await Posts.findOneAndUpdate({
+                _id: post_id
+            },
+                {
+                    reactions: {
+                        likes: like,
+                        comments: {
+                            buddy_id: [
+                                ...getBuddyIds, user_id
+                            ],
+                            commentators: [...commentorID, {
+                                comment: comment,
+                                user_id: user_id,
+                                time: time.toString()
+                            }],
+                        }
+                    }
+                },
+                { new: true })
+        }
+
+
+        if (user_id === poster_id) return res.status(200).json("poster is user");
+
+        const getNotificationObj = await notification.findOne({ user_id: poster_id });
+        const getPrevLikers = await getNotificationObj.reacts
+        const getPrevLikersUnread = await getNotificationObj.reacts.unread
+        const getPrevLikersRead = await getNotificationObj.reacts.read
+
+        // check if this post id is already in user's read or unread array 
+
+        if (getPrevLikersRead.find(i => i.post_id === post_id && i.react_type === 'comment') || getPrevLikersUnread.find(i => i.post_id === post_id && i.react_type === 'comment')) {
+
+            // check if this post notification alrady read by user or not
+            if (getPrevLikersRead.find(i => i.post_id === post_id && i.react_type === 'comment')) {
+                // if user has already read post notification
+                // check if this user is in the array 
+
+                const getBuddy_id = getPrevLikersRead[getPrevLikersRead.findIndex(i => i.post_id === post_id && i.react_type === 'comment')].buddy_id;
+                if (getBuddy_id.includes(user_id)) {
+
+                    console.log("this user in read array");
+                    //if user commented on this post before
+
+                    //filter read array 
+
+                    let removeThisPost = getPrevLikersRead.filter(i => i.post_id !== post_id)
+                    const getThisPost = getPrevLikersRead.filter(i => i.post_id === post_id)
+
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'comment')
+
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
+                    }
+
+                    const filterBuudylist = getBuddy_id.filter(i => i !== user_id);
+                    await notification.findOneAndUpdate({
+                        user_id: poster_id
+                    },
+                        {
+                            reacts: {
+                                getPrevLikers,
+                                unread: [
+                                    ...getPrevLikersUnread,
+                                    {
+                                        buddy_id: [
+                                            ...filterBuudylist, user_id
+                                        ],
+                                        buddy_name: userProfile.name,
+                                        post_id: post_id,
+                                        time: new Date(),
+                                        react_type: "comment"
+                                    }
+                                ],
+                                read: [
+                                    ...removeThisPost,
+                                ]
+                            }
+                        },
+                        { new: true }
+                    )
+                    res.status(200).json("commented");
+                } else {
+                    // if user new to comment on this post in read array 
+
+                    let removeThisPost = getPrevLikersRead.filter(i => i.post_id !== post_id)
+                    const getThisPost = getPrevLikersRead.filter(i => i.post_id === post_id)
+
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'comment')
+
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
+                    }
+
+                    // const filterBuudylist = getBuddy_id.filter(i=> i !== user_id);
+
+
+                    await notification.findOneAndUpdate({
+                        user_id: poster_id
+                    },
+                        {
+                            reacts: {
+                                getPrevLikers,
+                                unread: [
+                                    ...getPrevLikersUnread,
+                                    {
+                                        buddy_id: [
+                                            ...getBuddy_id, user_id
+                                        ],
+                                        buddy_name: userProfile.name,
+                                        post_id: post_id,
+                                        time: new Date(),
+                                        react_type: "comment"
+                                    }
+                                ],
+                                read: [
+                                    ...removeThisPost,
+                                ]
+                            }
+                        },
+                        { new: true }
+                    )
+                    res.status(200).json("commented");
+
+                }
+
+            } else {
+                console.log('user didnot read notification');
+                //if user didn't read notification yer
+
+                // check if this user is unread array 
+                const getBuddy_id = getPrevLikersUnread[getPrevLikersUnread.findIndex(i => i.post_id === post_id && i.react_type === 'comment')].buddy_id
+
+                if (getBuddy_id.includes(user_id)) {
+                    console.log("user did'nt read notification but user is old");
+
+                    //if user commented on this post before 
+                    let removeThisPost = getPrevLikersUnread.filter(i => i.post_id !== post_id);
+                    const getThisPost = getPrevLikersUnread.filter(i => i.post_id === post_id);
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'comment')
+                    // push other types in unread filtered array 
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
+                    }
+
+                    const filterBuddylist = getBuddy_id.filter(i => i !== user_id)
+                    await notification.findOneAndUpdate({
+                        user_id: poster_id
+                    },
+                        {
+                            reacts: {
+                                getPrevLikers,
+                                unread: [
+                                    ...removeThisPost,
+                                    {
+                                        buddy_id: [...filterBuddylist, user_id],
+                                        buddy_name: userProfile.name,
+                                        post_id: post_id,
+                                        time: new Date(),
+                                        react_type: "comment"
+                                    }
+                                ],
+                                read: [
+                                    ...getPrevLikersRead,
+                                ]
+                            }
+                        },
+                        { new: true }
+                    )
+                    res.status(200).json("commented");
+                } else {
+                    console.log("user didn't read notification but user is new");
+                    let removeThisPost = getPrevLikersUnread.filter(i => i.post_id !== post_id);
+                    const getThisPost = getPrevLikersUnread.filter(i => i.post_id === post_id);
+                    const removeOtherTypes = getThisPost.filter(i => i.react_type !== 'comment')
+                    // push other types in unread filtered array 
+                    for (let index = 0; index < removeOtherTypes.length; index++) {
+                        const element = removeOtherTypes[index];
+                        removeThisPost.push(element)
+                    }
+
+
+                    await notification.findOneAndUpdate({
+                        user_id: poster_id
+                    },
+                        {
+                            reacts: {
+                                getPrevLikers,
+                                unread: [
+                                    ...removeThisPost,
+                                    {
+                                        buddy_id: [...getBuddy_id, user_id],
+                                        buddy_name: userProfile.name,
+                                        post_id: post_id,
+                                        time: new Date(),
+                                        react_type: "comment"
+                                    }
+                                ],
+                                read: [
+                                    ...getPrevLikersRead,
+                                ]
+                            }
+                        },
+                        { new: true }
+                    )
+                    res.status(200).json("commented");
+                    // if user is new to comment on this post 
+
+
+                }
+            }
+
+        } else {
             await notification.findOneAndUpdate({
                 user_id: poster_id
             },
@@ -425,14 +702,12 @@ exports.makeComment = async (req, res) => {
                 },
                 { new: true }
             )
-            res.status(200).json({
-                updatePost,
-            });
-
+            res.status(200).json("commented");
         }
 
-    } catch (error) {
 
+    } catch (error) {
+        res.status(400).json({ error, message: "something went wrong" })
     }
 
 }

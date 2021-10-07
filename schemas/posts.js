@@ -27,10 +27,8 @@ const PostsSchema = new mongoose.Schema({
             liker: [],
         },
         comments: {
-            total: 0,
-            commentators: [
-                
-            ]
+            buddy_id: [], 
+            commentators: []
                 
         },
         required: false,
