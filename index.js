@@ -4,26 +4,35 @@ const express = require('express');
 const PORT = process.env.PORT || 5000;
 const app = express();
 const mongoose = require('mongoose');
+const cors = require('cors')
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser')
+const JWT_SECRET = process.env.JWT_SECRET;
+const { graphqlHTTP } = require('express-graphql');
+const { GraphQLObjectType, GraphQLList, GraphQLID, GraphQLSchema } = require('graphql');
+
+//import schemas
 const User = require("./schemas/user");
 const Posts = require('./schemas/posts')
-const cors = require('cors')
-const cookieParser = require('cookie-parser')
-const jwt = require('jsonwebtoken');
+
+//import routes
 const { updateUser } = require('./routes/updateUser');
 const { signup, login, logout } = require('./routes/authentication');
 const { newPost, getPost } = require('./routes/userpost');
 const { profile } = require('./routes/profile');
 const { getNotification, readNotification } = require('./routes/notification');
 const { likePost, unlikePost, getReacts, makeComment, deletePost } = require('./routes/postReact');
-const  JWT_SECRET = process.env.JWT_SECRET;
+const notification = require('./schemas/notification');
+const { notificationType } = require('./queries/getNotification');
+const { userType } = require('./queries/getUser');
 
 
 
 //db
 const DB = process.env.DATABASE;
 main().catch(err => console.log(err));
-async function main(){
-await   mongoose.connect(DB, {
+async function main() {
+    await mongoose.connect(DB, {
         useNewUrlParser: true,
         useUnifiedTopology: true
     })
@@ -32,32 +41,17 @@ await   mongoose.connect(DB, {
 
 
 
-// var whitelist = ['http://example1.com', 'http://example2.com']
-// var corsOptions = {
-//   origin: function (origin, callback) {
-//     if (whitelist.indexOf(origin) !== -1) {
-//       callback(null, true)
-//     } else {
-//       callback(new Error('Not allowed by CORS'))
-//     }
-//   }
-// }
+
 
 
 
 app.use(cors({
     origin: process.env.R_URL,
-credentials: true,
+    credentials: true,
 }))
-// if(process.env.NODE_ENV == 'production'){
-// } else {
-//     app.use(cors({
-    //     origin: "http://localhost:3000",
-//         credentials: true,
-//     }))
-// }
 
-app.listen(PORT, ()=> {
+
+app.listen(PORT, () => {
     console.log(`server running on port ${PORT}`);
 });
 
@@ -66,12 +60,48 @@ app.use(express.json());
 
 app.use(cookieParser())
 
-app.get('/hi', (req, res) => {
-    res.status(200).json({
-       headers: res.headers,
-       message: "welcome"
+
+
+//Graphql root configuration
+
+const root = new GraphQLObjectType({
+    name: "Query",
+    discription: "this is root query",
+    fields: () => ({
+        getUser: {
+            type: new GraphQLList(userType),
+            resolve: async () => await User.find()
+        },
+        getAllNotification: {
+            type: new GraphQLList(notificationType),
+            resolve: async () => await notification.find()
+        },
+        getOneNotification: {
+            type: notificationType,
+            args: {
+                id: {type: GraphQLID}
+            },
+            resolve: async (_, args) => await notification.findOne({user_id: args.id})
+        }
     })
 })
+
+const mySchema = new GraphQLSchema({
+    query: root,
+
+})
+
+
+app.use('/api/v1/auth/graphql', graphqlHTTP(
+    {
+        schema: mySchema,
+        graphiql: true,
+    }
+),
+)
+
+
+//this is to host both front-end and back-end on same server
 
 // Accessing the path module
 // const path = require("path");
@@ -87,27 +117,29 @@ app.get('/hi', (req, res) => {
 
 
 
+
+
 // Routes
 
 //Authorization
 
-const authorizeUser = (req, res, next)=> {
-    const authHeader = req.headers["athorization"];        
+const authorizeUser = (req, res, next) => {
+    const authHeader = req.headers["athorization"];
     const token = authHeader && authHeader.split(' ')[1];
 
-    if(token == null) return res.status(401).json("authorization failed, try login again!");
-    jwt.verify(token, JWT_SECRET, (err, user)=>{
-            if(err) return res.status(403).json("invalid token!");
-            req.user = user;
-            next();
+    if (token == null) return res.status(401).json("authorization failed, try login again!");
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json("invalid token!");
+        req.user = user;
+        next();
     })
-        
+
 }
-    
-app.get("/api/v1/auth/user", authorizeUser, async(req, res)=> {
-    const id= req.user.id
+
+app.get("/api/v1/auth/user", authorizeUser, async (req, res) => {
+    const id = req.user.id
     const user = await User.findById(id);
-    const getPosts = await Posts.find({clearance: "public"}).exec();
+    const getPosts = await Posts.find({ clearance: "public" }).exec();
     res.status(201).json({
         user,
         getPosts
@@ -144,16 +176,16 @@ const getReactssmiddle = async (req, res, next) => {
     const authHeader = req.headers["athorization"];
     const postid = authHeader && authHeader.split(' ')[1];
     const contentType = authHeader && authHeader.split(' ')[2]
-    
-    if(postid == null) return res.status(401).json("Post not found, try again!");
-    if(contentType === "like"){
+
+    if (postid == null) return res.status(401).json("Post not found, try again!");
+    if (contentType === "like") {
         try {
             const getPost = await Posts.findById(postid);
             const getLikersId = await getPost.reactions.likes.liker;
             const Arr = getLikersId;
             let likedUser = [];
-            await Arr.map(i=> (likedUser = [
-                ...likedUser, {id: i}
+            await Arr.map(i => (likedUser = [
+                ...likedUser, { id: i }
             ]))
             res.locals.likedUser = likedUser;
             res.locals.contentType = contentType;
@@ -167,8 +199,8 @@ const getReactssmiddle = async (req, res, next) => {
             const getLikersId = await getPost.reactions.comments.commentators;
             const Arr = getLikersId;
             let commentUserId = [];
-            await Arr.map(i=> (commentUserId = [
-                ...commentUserId, {id: i.user_id}
+            await Arr.map(i => (commentUserId = [
+                ...commentUserId, { id: i.user_id }
             ]))
             res.locals.commentUserId = commentUserId;
             res.locals.commentators = Arr;
